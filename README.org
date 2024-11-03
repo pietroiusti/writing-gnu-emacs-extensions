@@ -1,0 +1,125 @@
+* Chapter 2
+- Some concepts introduced by this chapter:
+  - hooks :: p. 24.
+  - Advices :: p.30.
+
+* Chapter 3
+- Some concepts introduced by this chapter:
+  - ~last-command~ variable.
+
+  - ~this-command~ variable.
+
+  - Properties of symbols :: Apparently, you can attach properties to
+    symbols.
+
+    You can use the function ~put~ to attach a property to a symbol,
+    and the function ~get~ to retrieve it.
+
+    This is useful for example, when using ~last-command~ or
+    ~this-command~. In order to decide whether to do something or not,
+    instead of looking at what command you are dealing with, you can
+    look at the properties of those command's symbol (this is exactly
+    what Author does in its example).
+
+  - Markers :: markers are smart pointers to places in the
+    buffer. They are smart, because they try to point to the ``same''
+    place even when the buffer is modified.
+
+    ~make-marker~, unsurprisingly, creates a marker. ~set-marker~,
+    also unsurprisingly, sets the value of a marker.
+
+
+Here is the final (slightly modified) example provided Author:
+
+#+begin_src emacs-lisp
+  (defadvice scroll-up-command (before remember-for-unscroll
+                               activate compile)
+    "Remember where we started from, for unscroll."
+    (unscroll-maybe-remember))
+
+  (defadvice scroll-down-command (before remember-for-unscroll
+                                 activate compile)
+    "Remember where we started from, for unscroll."
+    (unscroll-maybe-remember))
+
+  (defadvice scroll-left (before remember-for-unscroll
+                                 activate compile)
+    "Remember where we started from, for unscroll."
+    (unscroll-maybe-remember))
+
+  (defadvice scroll-right (before remember-for-unscroll
+                                  activate compile)
+    "Remember where we started from, for unscroll."
+    (unscroll-maybe-remember))
+
+  (put 'scroll-up-command 'unscrollable t)
+  (put 'scroll-down-command 'unscrollable t)
+  (put 'scroll-left 'unscrollable t)
+  (put 'scroll-right 'unscrollable t)
+
+  (defvar unscroll-point (make-marker)
+    "Cursor position for next call to 'unscroll'.")
+  (defvar unscroll-window-start (make-marker)
+    "Window start for next call to 'unscroll'.")
+
+  (defun unscroll-maybe-remember ()
+    (if (not (get last-command 'unscrollable))
+        (progn
+          (set-marker unscroll-point (point))
+          (set-marker unscroll-window-start (window-start))
+          (setq unscroll-hscroll (window-hscroll)))))
+  
+  (defun unscroll ()
+    "Revert to 'unscroll-point' and 'unscroll-window-start'."
+    (interactive)
+    (goto-char unscroll-point)
+    (set-window-start nil unscroll-window-start)
+    (set-window-hscroll nil unscroll-hscroll))
+#+end_src
+
+The elisp above can actually be useful for me almost as it is. I don't
+really press C-v or M-v by mistake, but sometimes I fail to realize
+that evil mode is active (in normal mode) and I press C-f, assuming
+it's gonna call forward-char, or press C-b, assuming it's gonna call
+backward-char. With some minimal changes I can get what Author has
+achieved for his usecase.
+
+I had to turn ~last-command~ into ~real-last-command~. As the docs
+say, it is:
+#+begin_quote
+as ‘last-command’, but never altered by Lisp code.
+#+end_quote
+
+#+begin_src emacs-lisp
+  (defadvice evil-scroll-page-down (before remember-for-unscroll
+                                           activate compile)
+    "Remember where we started from, for unscroll."
+    (unscroll-maybe-remember))
+
+  (defadvice evil-scroll-page-up (before remember-for-unscroll
+                                         activate compile)
+    "Remember where we started from, for unscroll."
+    (unscroll-maybe-remember))
+
+  (put 'evil-scroll-page-down 'unscrollable t)
+  (put 'evil-scroll-page-up 'unscrollable t)
+
+  (defvar unscroll-point (make-marker)
+    "Cursor position for next call to 'unscroll'.")
+  (defvar unscroll-window-start (make-marker)
+    "Window start for next call to 'unscroll'.")
+
+  (defun unscroll-maybe-remember ()
+    (if (not (get real-last-command 'unscrollable))
+        (progn
+          (set-marker unscroll-point (point))
+          (set-marker unscroll-window-start (window-start))
+          (setq unscroll-hscroll (window-hscroll)))))
+
+  (defun unscroll ()
+    "Revert to 'unscroll-point' and 'unscroll-window-start'."
+    (interactive)
+    (goto-char unscroll-point)
+    (set-window-start nil unscroll-window-start)
+    (set-window-hscroll nil unscroll-hscroll))
+#+end_src
