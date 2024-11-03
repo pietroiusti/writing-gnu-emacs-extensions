@@ -1,3 +1,5 @@
+Notes on Bob Glickstein's /Writing GNU Emacs Extensions/.
+
 * Chapter 2
 - Some concepts introduced by this chapter:
   - hooks :: p. 24.
